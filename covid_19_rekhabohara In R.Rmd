@@ -1,0 +1,512 @@
+---
+title: "Covid19"
+author: "rekha_bohara"
+date: "04/05/2022"
+output: html_document
+---
+
+**Part A - Data Science Questions**
+**1.From your understanding of ethical data science, mention three principles of a code of ethics that any data scientist should consider.**
+Answer are:
+P1:Produce truthful, interpreted results
+P2:Respect privacy of the data
+p3:Avoid Misuses and  follow code of conduct 
+
+**2.To build a visualisation using the ggplot2 library, we use the following template:**
+ggplot(data= [dataset], mapping = aes(x = [x-variable], y = [y-variable]))+
+  geom_xxx() +
+  other options 
+
+Based on the above template, mention the main components of building a graph using ggplot2 and describe the meaning of each of these components.
+
+Ans: 
+1.using ggplot library we create empty coordinate system and Map aesthetics to functions of variables
+where x=explanatory,y=response variable 
+
+2.Add a layer of geom graph function to represent the relation between x and y variables 
+
+3. In other option we can add additional variable using facet+ modify and explore plots to modify visualizations and co-lours.
+
+
+**3.Describe three properties of the correlation coefficient of two variables**
+1.The numerical value of correlation of coefficient will be in between -1 to + 1
+2.The negative value of coefficient suggests that the correlation is strong and negative. And if 'r' goes on approaching toward -1 then it means that the relationship is going towards the negative side.
+3.The coefficient of correlation is not affected when we interchange the two variables
+
+
+**4.Imagine we have a data set that lists the heights of the fathers and their sons. You have built a linear model that encodes the relationship between the fathers' heights and the sons' heights as follows:**
+
+lm(son ~ father, data = heights_data)
+
+Call:
+lm(formula = son ~ father, data = heights_data)
+
+Coefficients:
+(Intercept)    father  
+70.45       0.50  
+
+The estimated coefficient (i.e. intercept and slope), which describes the relationship between the fathers' and sons' heights can be interpreted as:
+
+Ans : 
+we know that :Regression line  y= b0 + b1 * x
+b0 is intercept at x zero.
+b1 is slope.
+ where ,
+son = 70.45+0.50  father 
+Thus,
+The intercept (b0) is 70.45
+The slope (b1) is 0.50
+We can  describe the relationship between th father  and sons' height as for every 1 inch increase in the father height ,the son's height getting increased by 0.50 inch.
+
+
+**Part B-Data Preparation, exploring and modelling**
+
+1.Load and read the data from the CSV files and store them into dataframes named appropriately.
+```{r }
+#clean Console  as command (CTRL + L)
+cat("\014") 
+
+#clean all global variables
+rm(list = ls())
+#install.packages(c("corrplot"))
+
+#Library
+library(rstudioapi)
+#install.packages("heatmaply")
+library(heatmaply)
+library (tidyverse)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(lubridate)
+library(scales)
+library(corrplot)
+library(caret)
+#Fetch Data
+
+#clean Console  as command (CTRL + L)
+cat("\014") 
+rm(list = ls())
+
+#1)load data set 
+# get & set path from parent directory
+parent_directory <-  dirname(rstudioapi::getSourceEditorContext()$path)
+print(parent_directory)
+setwd(parent_directory)
+
+#get list of 12 csv file  from parent directory & load 
+csv_files <- list.files(parent_directory, pattern = ".csv" ,full.names = FALSE )
+csv_dataframe <- sub(".csv","",csv_files)
+print(csv_dataframe)
+
+for (i in 1:length(csv_files)){ # create aloop as per length count of csv file list
+  df_name <- sub(".csv","", csv_files[i])  #replaces the  match of all elements from loop
+  file_data<- (csv_files[i]) # Single file name to works
+  data <- assign(df_name,read_csv(file_data,show_col_types = FALSE))
+}
+
+```
+
+2.Tidy up the data frame driven from the file "Recovered.csv" to be compatible with the data frame driven from the file "Covid19.csv", i.e., every observation should have a record of recovered patients in one country in a single day
+```{r}
+# Create long version of the dataset using gather function
+MarkerStart <- colnames(Recovered)[2]
+print(MarkerStart)
+MarkerEnd <- colnames(Recovered)[ncol((Recovered))]
+print(MarkerEnd)
+Recovered_1<-  Recovered %>% gather(MarkerStart:MarkerEnd,key = "Date" , value = "Recovered"  )
+
+```
+3.Change the column names in the data frames were loaded from the following files accordingly.
+```{r}
+# column name in recovered data set 
+names(Recovered_1) <- c("Country","Date","Recovered")
+names(Recovered_1)
+
+# column name in Countries data set 
+names(Countries)<- c("Code","Country","Population","GDP","GDPCapita")
+names(Countries)
+
+# column name in covid19 data set 
+names(Covid19)<- c("Code", "Country", "Continet", "Date", "NewCases", "NewDeaths")
+names(Covid19)
+
+# column name in test data set 
+names(Tests)<- c("Code", "Date", "NewTests")
+names(Tests)
+
+```
+
+4.Ensure that all dates variables are of date data type and with the same format across the dataframes.
+```{r}
+#date format conversion in recovered data to fix foramt as per other existing date format  
+Recovered_1$Date <- as.Date(Recovered_1$Date, format = "%Y,%m,%d")
+#Covid19$Date<- as.Date(Covid19$Date,format = "%y,%m,%d" )
+#Tests$Date<- as.Date(Tests$Date,format = "%y,%m,%d" )
+
+#datatype check
+str(Covid19)
+str(Recovered_1)
+str(Tests)
+
+
+```
+5.Considering the master dataframe is the one loaded from file "Covid19.csv", add new 5 variables to it from the other files (Recovered.csv, Tests.csv, Countries.csv). The 5 new added variables should be named ("Recovered", "NewTests", "Population", "GDP", "GDPCapita") accordingly.
+
+[Hint: you may use the merge function to facilitate the alignment of the data of the different dataframes. You may use this format: merge(x=df1,y=df2,all.x=TRUE), where df1 and df2 are the dataframes to be merged]
+
+```{r}
+#merge(x, y, by = intersect(names(x), names(y))
+#merge- Covid19 & Recovered dataset with common variable 
+main_data <- merge(x=Covid19,y=Recovered_1,by= c("Country","Date"),all.x = TRUE)
+# again merge test data  with maindata set with common variable 
+main_data<- merge(x=main_data,y=Tests ,by= c("Code","Date"),all.x = TRUE)
+# again merge country data  with maindata set with common variable 
+main_data<- merge(x=main_data,y=Countries ,by= c("Code","Country"),all.x = TRUE)
+
+```
+6.Check for NAs in all dataframes and change them to Zero.
+
+```{r}
+# check for missing values in all columns of the data set
+na_values <- data.frame(sapply(main_data,function(x)sum(is.na(x) )))
+colnames(na_values) <- ("Sum")
+na_df <- na_values %>% filter(Sum>0)
+na_df %>%  mutate(na_percent = (na_df$Sum/nrow(main_data) )*100)  
+#Fill missing values
+main_data$Recovered[is.na(main_data$Recovered)]<- 0
+main_data$NewTests[is.na(main_data$NewTests)]<- 0
+
+# check for missing values in all columns of the data set again if any 
+na_values <- data.frame(sapply(main_data,function(x)sum(is.na(x) )))
+colnames(na_values) <- ("Sum")
+na_df <- na_values %>% filter(Sum>0)
+na_df %>%  mutate(na_percent = (na_df$Sum/nrow(main_data) )*100)  
+
+```
+
+7.Using existing "Date" variable; add month and week variables to the master dataframe. [Hint: you may use functions from lubridate package]
+
+[Hint: To ensure that this task has been finished correctly, when you run head(covid19_data), you should get results such as in the below image]
+
+
+```{r}
+main_data<- main_data %>%  mutate(Month = month(Date)) %>% mutate(Week = week(Date))
+head(main_data)
+dim(main_data)
+
+```
+**Task 2: Exploratory Data Analysis**
+
+1.Add four new variables to the master data frame ("CumCases", "CumDeaths", "CumRecovered", "CumTests"). These variables should reflect the cumulative relevant data up to the date of the observation; i.e., CumCases for country "X" at Date "Y" should reflect the total number of cases in country "X" since the beginning of recording data till the date "Y".
+
+[Hint: first arrange by date and country, then for each new variable to be added you need to group by country and mutate the new column using the cumsum function]
+
+```{r}
+main_data<- main_data %>%  arrange(main_data,Country,Date) 
+main_data<- main_data %>% group_by(Country) %>% mutate(CumCases = cumsum(NewCases)) %>%  mutate(CumDeaths= cumsum(NewDeaths)) %>%  mutate(CumRecovered= cumsum(Recovered)) %>% mutate(CumTests= cumsum(NewTests) )
+
+
+```
+
+2.Add two new variables to the master dataframe ("Active", "FatalityRate"). Active variable should reflect the infected cases that has not been closed yet (by either recovery or death), and it could be calculated from (CumCases - (CumDeaths + CumRecovered)). On the other hand, FatalityRate variable should reflect the percentages of death to the infected cases up to date and it could be calculated from (CumDeaths / CumCases).
+
+```{r}
+main_data<- main_data %>%  mutate(Active= (CumCases - (CumDeaths + CumRecovered))) %>%  mutate(FatalityRate=(CumDeaths / CumCases))
+
+```
+3.Add four new variables to the master dataframe ("Cases_1M_Pop", "Deaths_1M_Pop", "Recovered_1M_Pop", "Tests_1M_Pop") These variables should reflect the cumulative relevant rate per one million of the corresponding country population, (i.e Cases_1M_Pop for country "X" at Date "Y" should reflect the total number of new cases up to date "Y" per million people of country "X" population)
+
+[Hint: Cases_1M_Pop = CumCases*(10^6) / Population)]
+
+```{r}
+main_data<- main_data %>% mutate(Cases_1M_Pop= CumCases*(10^6) / Population) %>% mutate(Deaths_1M_Pop = CumDeaths*(10^6) / Population ) %>%  mutate(Recovered_1M_Pop= CumRecovered*(10^6) / Population) %>%  mutate(Tests_1M_Pop= CumTests*(10^6) / Population)
+
+```
+
+4.Find the day with the highest reported death toll across the world. Print the date and the death toll of that day.
+
+```{r}
+highest_death_toll <- main_data[which.max(main_data$NewDeaths),c("Date","NewDeaths")]
+highest_death_toll
+```
+
+5.Build a graph to show how the cumulative data of (Infected Cases, Deaths, Recovered, Tests) change over the time for the whole world collectively.
+
+[Hint: Use geom_line as a geometry function, use log for the Y axis for better presentation, Use different colour to distinguish between new cases, deaths, and recovered]
+```{r}
+cumulative_data  <- main_data %>% group_by(Date) %>% summarise(CumCases= sum(NewCases), CumDeaths= sum(NewDeaths), CumRecovered=sum(Recovered), CumTests=sum(NewTests))
+ggplot(cumulative_data,aes(x = Date), color = CaseType) +
+geom_line(aes(y=log(CumCases),color = "CumCases"))+
+geom_line(aes(y=log(CumDeaths),colour = "CumDeaths"))+
+geom_line(aes(y=log(CumRecovered),color = "CumRecovered"))+
+geom_line(aes(y=log(CumTests),colour = "CumTests"))+
+ggtitle("Cumulative Global Covid19 Data" )+ xlab("Month")+ylab("Count of people log ")+labs(color= "Type")
+ 
+
+```
+
+6.Extract the data corresonding to the last day (05/05/2020) and save it in a separate dataframe and name it "lastDay_data".
+
+[Hint: use filter function with Date = "2020-05-05"]
+```{r}
+
+lastDay_data<- main_data %>%  filter(Date =="2020-05-05") 
+
+```
+
+7.Based on the data of the last day, extract the records of the top 10 countries worldwide that have current active cases, total confirmed cases, and fatality rate in separate dataframes (i.e., top10activeW, top10casesW, top10fatalityW, top10testsMW).
+
+[Hint: you can use head(arranged_data, n=10) to get the top 10 records]
+```{r}
+top10activeW<- head(lastDay_data %>%  arrange(desc(Active)),n=10)
+top10casesW<- head(lastDay_data %>%  arrange(desc(CumCases)),n=10)
+top10fatalityW<- head(lastDay_data %>%  arrange(desc(FatalityRate)),n=10)
+top10testsMW<- head(lastDay_data %>%  arrange(desc(NewTests)),n=10)
+
+```
+
+8.Based on the data of the last day, print the up to date confirmed, death, recovered cases as well as the tests for every continent.
+```{r}
+
+Continent_data<- lastDay_data %>%
+  group_by(Continet) %>%
+  summarise_at(vars(CumCases, CumDeaths, CumRecovered, CumTests), sum)
+
+```
+9.Build a graph to show the total number of cases over the time for the top 10 countries that have been obtained in question 7 (Use log for Y axis for better presentation).
+```{r}
+top_10_countries <- top10casesW$Country
+top_10_cases_countries<- main_data %>% filter(Country %in% top_10_countries)
+ggplot(top_10_cases_countries,aes(x=Date, colour=Country))+geom_line(aes(y=log(CumCases)))
+
+```
+
+10.Build a graph for the top 10 countries with current highest active cases which was obtained previously in question .The graph should have one sub graph (i.e., using facet function) for each of these countries, every sub graph should show how the new cases, new deaths, and new recovered cases were changing over the time (Use log for Y axis for better presentation, Use different color to distinguish between new cases, deaths, and recovered).
+[hint: geom_line function with date on x_axis and each of the values of the variables in y_axis]
+
+```{r}
+top_10_cases_countries %>%
+  select(Date,Country,NewCases,NewDeaths,Recovered)%>% 
+  rename(Infected= NewCases, New_deaths = NewDeaths,Recovered = Recovered) %>%
+  gather(key = "Cases", value = "Value",Infected:Recovered) %>%
+  ggplot(aes(x = Cases, y = Value, fill = Cases)) +
+  geom_col() +
+  ggtitle("Covid Statistics of Top10 countries with highest Active Cases") +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~Country, scales = "free") +
+  theme(axis.text.x = element_blank())
+
+
+
+```
+
+11.Build a graph for the top 10 countries with current highest total tests per one million of the population which was obtained previously in question 7. This graph should present total number of infected cases, total tests so far, and the total tests per million of the population for each country.
+[hint: you can use bar chart to achieve this task]
+
+```{r}
+#top10testsMW<- head(lastDay_data %>%  arrange(desc(NewTests)),n=10)
+top10testsMW %>%
+  select(Date,Country,CumCases,CumTests,Tests_1M_Pop)%>% 
+  rename(Infected= CumCases, total_test = CumTests, test_per_mlpop = Tests_1M_Pop) %>%
+  gather(key = "Cases", value = "Value",Infected:test_per_mlpop) %>%
+  ggplot(aes(x = Cases, y = Value, fill = Cases)) +
+  geom_col() +
+  ggtitle("Covid Statistics of Top10 countries with highest total tests per 1Mpopulation") +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~Country, scales = "free") +
+  theme(axis.text.x = element_blank())
+
+```
+
+12.Build a graph to present the statistics of all continents which was obtained previously in question 8 (Use log for Y axis for better presentation, Use Continent in the legend, make sure x-axis labels does not overlap).
+```{r}
+Continent_data %>% gather(key = "CaseType", value = "Count", -Continet) %>%
+  ggplot(aes(x = CaseType, y = Count, fill = Continet,alpha=0.1)) +
+  geom_col() +
+  scale_y_log10()
+ggtitle("Covid Statistics of all continents") 
+
+```
+
+Task 3: Data-Driven Modelling: (14 marks)
+1.Based on the data of the last day, that you have extracted in the previous task, create a separate dataframe named "cor_data" with the data of these variables (CumCases, CumTests, Population, GDP, GDPCapita).
+```{r}
+cor_data <- lastDay_data %>%  select(CumCases,CumTests,Population,GDP,GDPCapita )
+cor_data<- cor_data %>% ungroup(Country) %>% select(-c("Country"))
+dim(cor_data)
+
+```
+
+2.Compute the correlation matrix between the variables of the "cor_data" and visualise this correlation matrix.
+```{r}
+
+#get corrdata 
+correlation_matrix <- cor(cor_data)
+correlation_matrix
+#plot corr data 
+corrplot(correlation_matrix, method = 'square', order = 'AOE', addCoef.col = 'black', tl.pos = 'd',cl.pos = 'n', col = COL2('BrBG'))
+corrplot(correlation_matrix, method = "number")
+
+```
+
+3.visualise the distribution of the cumulative cases in the cor_data with and without changing the scale of the x axis to log transformation.
+
+[Hint: you can use the geom_histrogram function]
+```{r}
+
+cor_data %>%
+  ggplot(aes(x = CumCases)) +
+  geom_histogram(position="identity", alpha=0.2,fill = "blue",bins = 30,col="white")
+
+# Distribution of cumulative cases with tranformation
+cor_data %>%
+  ggplot(aes(x = log(CumCases))) +
+  geom_histogram(position="identity", alpha=0.2,fill = "blue",bins = 30 ,col="white")+
+   labs(title = "Distribution of cumulative cases  Histogram",
+       x = "cumulative cases",
+       y = "Count of Values")
+ 
+  
+
+```
+
+4.Divide the cor_data into training and testing, where training data represent 65% of the number of rows.
+```{r}
+
+# Divide the cor_data into training and testing data
+index_data <- createDataPartition(cor_data$CumCases, p = .65, list = FALSE)
+length(cor_data$CumCases)
+train <- cor_data[index_data, ]
+test <- cor_data[-index_data, ]
+dim(train)
+dim(test)
+
+```
+
+5.Train a linear regression model to predict cumulative cases from the GDP of the countries. Then, evaluate this model on the test data and print the root mean square error value.
+```{r}
+
+# Fit the model
+lm_model_GDP_cumCases<- lm(CumCases ~ GDP,cor_data)
+# evaluate model on the test data
+summary(lm_model_GDP_cumCases)
+plot(lm_model_GDP_cumCases)
+# predicting
+test$PreditedCases <- predict(lm_model_GDP_cumCases, test)
+# print the root mean squared error
+RMSE(test$CumCases,test$PreditedCases)
+
+
+```
+
+6.Train another linear regression model to predict cumulative cases from all the other variables. Then, evaluate this model on the test data and print the root mean square error value.
+```{r}
+
+lmModel2 <- lm(CumCases ~ . , cor_data)
+# Validating Regression Coefficients and Models
+summary(lmModel2)
+plot(lmModel2)
+test$PreditedAll <- predict(lmModel2, test)
+RMSE(test$CumCases, test$PreditedAll)
+
+
+```
+
+7.Interpret the two models and write a small report of highlighting the differences between using the two models. For example, in which cases we should use the first model and in which cases the second one is better to use.
+*ANS:*
+The basic idea to measure bad/error of the model predict when we compare to the actual observed value m High RMSE is bad  and low RMSE is good.
+R Square allows us to measure strength of the relationship between the response variable in the range 0.0 to 1.0.For RMSE, good means that the model generates accurate predictions with small residuals. In above two model Model2 is more preferred and good as per statistic output from each model.Low RMSE high R square , the best cases.  RMSE =24985.49, R-squared:  0.9139.
+Model1: 68890.16, R squared:  0.7251.
+Best for uni variant variables, simple liner regression model i.e., Total death, total cases, total test 
+Model2: RMSE =24985.49, R squared:  0.9139.
+Best for multivariate variables, multiple regression model where we need multiple variables to calculate i.e GDP, GDP Capital, Cumulative data. etc
+
+***Task 4 - Insights***
+Imagine you have been asked to plan for a dashboard that shall show the trends and the main figures of the different Covid19 waves that happened world wide, so far. Given the current data in this assignment is only covering the first wave of the Covid19, how would you augment this data? What are the other sources of data that you will rely on? What types of figures will you be focusing on to show in your dashboard? and why?
+
+Report as follows:
+
+**1. Objectives:**
+The objective of this report is to give readers an idea of data analysis on covid19cases. Interested readers can initiate exploratory analysis on this data for further understanding and thereby contribute to the welfare of human beings infected during this pandemic.
+To understand Trend of cases and scenarios and draw analysis inference about the future, from current events.
+To acknowledge the highest infected areas as per test and death ratio along recovered data so people can be aware of the pandemic update as well as examines best practices and effects of preventive measures across different regions. 
+
+**2. List of data sources to augment the existing data:**
+- we can collect depth Insights over this Worldwide Pandemic and analysis for each region, country country  as per requirements 
+- we can Analysis data differently for Health Workers , Government,Hospitality,Educational, Businesses
+- we can manipulate data from external  data sources from different  business and  analysis for forecasting and business analysis 
+
+
+**3. Set of figures/tables to show in the dashboard:**
+
+```{r}
+
+
+#Countries with  highest  cases 
+
+top_10_cases_countries %>%
+  select(Date,Country,NewCases,NewDeaths,Recovered)%>% 
+  rename(Infected= NewCases, New_deaths = NewDeaths,Recovered = Recovered) %>%
+  gather(key = "Cases", value = "Value",Infected:Recovered) %>%
+  ggplot(aes(x = Cases, y = Value, fill = Cases)) +
+  geom_col() +
+  ggtitle("Covid Statistics of Top10 countries with highest Active Cases") +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~Country, scales = "free") +
+  theme(axis.text.x = element_blank())
+
+
+#Countries with  lowest   cases 
+
+LowestcasesW<- tail(lastDay_data %>%  arrange(desc(CumCases)),n=10)
+Less_10_countries <- LowestcasesW$Country
+less_10_cases_countries<- main_data %>% filter(Country %in% Less_10_countries)
+
+less_10_cases_countries %>%
+  select(Date,Country,NewCases,NewDeaths,Recovered)%>% 
+  rename(Infected= NewCases, New_deaths = NewDeaths,Recovered = Recovered) %>%
+  gather(key = "Cases", value = "Value",Infected:Recovered) %>%
+  ggplot(aes(x = Cases, y = Value, fill = Cases)) +
+  geom_col() +
+  ggtitle("Covid Statistics of Top10 countries with Lowest Active Cases") +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~Country, scales = "free") +
+  theme(axis.text.x = element_blank())
+
+
+
+
+```
+
+
+**4. Analysis strategy:**
+a.Confirmed case trending in geographic areas
+
+b.Operational workflows for patients in high-risk countries 
+
+c.Which countries and continents are impacted more than others
+
+d.Many countries are using social distancing strategies to decrease the transmission of the virus before moving to full lock downs. 
+
+e.Using spatial data on human mobility, governments can see where measures are or aren't working using dashboards
+
+f.Online retailers & other respective logistics providers are seeing unprecedented demand due to rise in cases. 
+
+g.Low cases countries to use strategies like country,flights, lock down to decrease the transmission of the virus from High Cases countries 
+
+h.Government and Health to analysis over total population and total test record  which help to plan a strategy and insight over pandemic for that country.
+
+h.Analysis of efficacy of intervention strategies for COVID-19
+
+**Code of Ethics:**
+*This report is only for Educational purposes.*
+
+*References:University of Canberra sites ,Data Science Labs,Lecture PDF & some Inspiration from Stack overflow* 
+*Thank you .*
+
+
+
+
+
+
